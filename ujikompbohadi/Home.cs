@@ -32,50 +32,79 @@ namespace ujikompbohadi
             this.idUser = idUser;
         }
 
+        private void LoadProducts(string search = null)
+        {
+            // Ambil koneksi dari class Connection
+            using (SqlConnection sqlConnection = connection.GetConnection())
+            {
+                try
+                {
+                    sqlConnection.Open();
+
+                    // Query dasar
+                    string query = @"
+                SELECT p.id_produk, p.nama_produk, p.harga, p.stok, p.deskripsi, p.gambar_produk, p.tanggal_upload, u.nama AS pemilik
+                FROM products p
+                LEFT JOIN users u ON p.id_user = u.id_user
+            ";
+
+                    // Jika ada kata pencarian, tambahkan WHERE dengan parameter (prevent SQL injection)
+                    if (!string.IsNullOrWhiteSpace(search))
+                    {
+                        query += @"
+                    WHERE p.nama_produk LIKE @q
+                       OR p.deskripsi LIKE @q
+                       OR u.nama LIKE @q
+                ";
+                    }
+
+                    using (SqlCommand cmd = new SqlCommand(query, sqlConnection))
+                    {
+                        if (!string.IsNullOrWhiteSpace(search))
+                        {
+                            cmd.Parameters.AddWithValue("@q", "%" + search + "%");
+                        }
+
+                        // isi DataSet / DataTable baru setiap pemanggilan agar data fresh
+                        ds = new DataSet();
+                        adapter = new SqlDataAdapter(cmd);
+                        adapter.Fill(ds, "products");
+
+                        dataGridView.DataSource = ds.Tables["products"];
+
+                        // Jika kolom ada, atur header dan sembunyikan gambar
+                        if (dataGridView.Columns.Contains("id_produk")) dataGridView.Columns["id_produk"].HeaderText = "ID";
+                        if (dataGridView.Columns.Contains("nama_produk")) dataGridView.Columns["nama_produk"].HeaderText = "Nama Produk";
+                        if (dataGridView.Columns.Contains("harga")) dataGridView.Columns["harga"].HeaderText = "Harga";
+                        if (dataGridView.Columns.Contains("stok")) dataGridView.Columns["stok"].HeaderText = "Stok";
+                        if (dataGridView.Columns.Contains("deskripsi")) dataGridView.Columns["deskripsi"].HeaderText = "Deskripsi";
+                        if (dataGridView.Columns.Contains("tanggal_upload")) dataGridView.Columns["tanggal_upload"].HeaderText = "Tanggal Upload";
+                        if (dataGridView.Columns.Contains("pemilik")) dataGridView.Columns["pemilik"].HeaderText = "Pemilik";
+                        if (dataGridView.Columns.Contains("gambar_produk")) dataGridView.Columns["gambar_produk"].Visible = false;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show("Error saat mengambil data: " + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                }
+            }
+        }
+
         private void Home_Load(object sender, EventArgs e)
         {
             label1.Text = "Selamat Datang " + username;
-            // Ambil koneksi dari class Connection
-            SqlConnection sqlConnection = connection.GetConnection();
+            LoadProducts(null);
+        }
 
-            try
-            {
-                sqlConnection.Open(); // Membuka koneksi ke database
+        private void btnSearch_Click(object sender, EventArgs e)
+        {
+            string q = txbSearch.Text.Trim();
+            LoadProducts(q);
+        }
 
-                // Membuat perintah SQL untuk mengambil data dari tabel "items"
-                string query = "SELECT p.id_produk, p.nama_produk, p.harga, p.stok, p.deskripsi, p.gambar_produk, p.tanggal_upload, u.nama AS pemilik FROM products p LEFT JOIN users u ON p.id_user = u.id_user";
-                sqlCommand = new SqlCommand(query, sqlConnection);
-
-                // Membuat DataSet dan DataAdapter untuk menampung dan mengisi data
-                ds = new DataSet();
-                adapter = new SqlDataAdapter(sqlCommand);
-
-                // Menjalankan query dan mengisi DataSet
-                adapter.Fill(ds, "products");
-
-                // Tampilkan data ke dalam DataGridView
-                dataGridView.DataSource = ds.Tables["products"];
-
-                // Mengatur tampilan kolom DataGridView
-                dataGridView.Columns["id_produk"].HeaderText = "ID";
-                dataGridView.Columns["nama_produk"].HeaderText = "Nama Produk";
-                dataGridView.Columns["harga"].HeaderText = "Harga";
-                dataGridView.Columns["stok"].HeaderText = "Stok";
-                dataGridView.Columns["deskripsi"].HeaderText = "Deskripsi";
-                dataGridView.Columns["tanggal_upload"].HeaderText = "Tanggal Upload";
-                dataGridView.Columns["pemilik"].HeaderText = "Pemilik";
-                dataGridView.Columns["gambar_produk"].Visible = false; // Sembunyikan kolom gambar
-            }
-            catch (Exception ex)
-            {
-                // Tampilkan pesan jika terjadi error
-                MessageBox.Show("Error: " + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-            }
-            finally
-            {
-                sqlConnection.Close(); // Tutup koneksi di bagian finally agar selalu tertutup
-            }
-
+        private void txbSearch_TextChanged(object sender, EventArgs e)
+        {
+             LoadProducts(txbSearch.Text.Trim());
         }
 
         private void btnUpdate_Click(object sender, EventArgs e)
@@ -157,7 +186,6 @@ namespace ujikompbohadi
                     {
                         MessageBox.Show("Gagal menyalin gambar: " + exCopy.Message, "Error",
                             MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                        // Lanjutkan saja: masih bisa update field lain
                     }
                 }
 
@@ -402,8 +430,6 @@ namespace ujikompbohadi
                 }
 
                 var row = dataGridView.SelectedRows[0];
-
-                // ================= FIX PALING PENTING =================
                 object val = row.Cells["id_produk"].Value;
                 if (val == null || !int.TryParse(val.ToString(), out int itemId))
                 {
@@ -411,7 +437,6 @@ namespace ujikompbohadi
                         MessageBoxButtons.OK, MessageBoxIcon.Warning);
                     return;
                 }
-                // ======================================================
 
                 if (MessageBox.Show("Apakah Anda yakin ingin menghapus item ini?", "Konfirmasi",
                     MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.No)
@@ -449,16 +474,5 @@ namespace ujikompbohadi
                 MessageBox.Show("Error: " + ex.Message);
             }
         }
-
-        private void btnSearch_Click(object sender, EventArgs e)
-        {
-            
-        }
-
-        private void txbSearch_TextChanged(object sender, EventArgs e)
-        {
-
-        }
-    }
     }
 }
