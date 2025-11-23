@@ -10,6 +10,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using System.Windows.Forms.DataVisualization.Charting;
 using System.Xml.Linq;
 using static System.Windows.Forms.VisualStyles.VisualStyleElement.StartPanel;
 
@@ -226,10 +227,7 @@ namespace ujikompbohadi
                     }
                 }
 
-                // Refresh data di UI
                 Home_Load(sender, e);
-
-                // (Opsional) Kosongkan/refresh input
                 txbNamaProduk.Clear();
                 txbHarga.Clear();
                 txbStok.Clear();
@@ -412,7 +410,7 @@ namespace ujikompbohadi
                 }
                 else
                 {
-                    pictureBox1.Image = null; // Kosongkan PictureBox jika gambar tidak ditemukan
+                    pictureBox1.Image = null;
                 }
             }
 
@@ -460,7 +458,6 @@ namespace ujikompbohadi
                 MessageBox.Show("Item berhasil dihapus.", "Informasi",
                     MessageBoxButtons.OK, MessageBoxIcon.Information);
 
-                // Refresh UI
                 Home_Load(sender, e);
                 txbNamaProduk.Clear();
                 txbHarga.Clear();
